@@ -1,0 +1,49 @@
+networks:
+  pocatcher-net:
+    driver: bridge
+
+services:
+  redis:
+    image: redis:7-alpine
+    networks:
+      - pocatcher-net
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: ./pocatcher-api
+    networks:
+      - pocatcher-net
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: ./pocatcher-ui
+      args:
+        VITE_API_ORIGIN: ""
+    networks:
+      - pocatcher-net
+    ports:
+      - "4173:4173"
+    depends_on:
+      redis:
+        condition: service_healthy
